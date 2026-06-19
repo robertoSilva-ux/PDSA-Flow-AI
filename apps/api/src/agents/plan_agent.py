@@ -2,16 +2,8 @@ from typing import Annotated, List, Optional
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# --- Configuration ---
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+from src.llm_factory import get_llm
 
 # --- Helpers ---
 
@@ -23,12 +15,6 @@ def _get_hypothesis_text(hypotheses):
     if isinstance(hypo, dict):
         return hypo.get("statement", "N/A")
     return getattr(hypo, "statement", "N/A")
-
-llm = ChatOllama(
-    model=OLLAMA_MODEL,
-    base_url=OLLAMA_BASE_URL,
-    temperature=0
-)
 
 # --- Schema ---
 
@@ -58,7 +44,8 @@ class PlanState(TypedDict):
 # --- Nodes ---
 
 async def hypothesis_generator(state: PlanState):
-    """Gera múltiplas hipóteses testáveis usando a LLM via Ollama."""
+    """Gera múltiplas hipóteses testáveis usando a LLM."""
+    llm = get_llm()
     prompt = ChatPromptTemplate.from_messages([
         ("system", "Você é um especialista em melhoria contínua e metodologia PDSA. "
                    "Sua tarefa é gerar uma LISTA de 3 hipóteses formais e testáveis para um ciclo de melhoria. "
@@ -113,6 +100,7 @@ async def hypothesis_generator(state: PlanState):
 
 async def study_analyst(state: PlanState):
     """Analisa os resultados da execução frente à hipótese original."""
+    llm = get_llm()
     prompt = ChatPromptTemplate.from_messages([
         ("system", "Você é um analista de dados especialista em melhoria contínua (PDSA). "
                    "Sua tarefa é comparar o que foi PLANEJADO (Objetivo e Hipótese) com o que foi EXECUTADO (Observações e Dados). "
@@ -168,6 +156,7 @@ async def study_analyst(state: PlanState):
 
 async def act_advisor(state: PlanState):
     """Sugere a decisão final (Adotar, Adaptar ou Abandonar) baseada no estudo."""
+    llm = get_llm()
     prompt = ChatPromptTemplate.from_messages([
         ("system", "Você é um consultor estratégico de melhoria contínua. "
                    "Sua tarefa é analisar os resultados do estudo PDSA e recomendar a melhor decisão: "
