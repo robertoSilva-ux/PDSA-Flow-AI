@@ -256,6 +256,28 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
           </CardHeader>
           
           <CardContent className="min-h-[350px]">
+            {isAnalyzing && (
+              <div className="mb-6 space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  A IA está analisando seu contexto...
+                </div>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary/60" /> Consultando o modelo local (Ollama)
+                  </li>
+                  <li className="flex items-center gap-2 animate-pulse">
+                    <Loader2 className="w-4 h-3 animate-spin text-primary" /> Gerando hipóteses a partir de Objetivo, Medição e Mudança
+                  </li>
+                  <li className="flex items-center gap-2 opacity-50">
+                    <Loader2 className="w-4 h-3 animate-spin" /> Calculando rigor estatístico e métricas sugeridas
+                  </li>
+                </ul>
+                <p className="text-xs text-muted-foreground/70">
+                  Modelos locais podem levar até ~40s. Você continuará com o controle da escolha final.
+                </p>
+              </div>
+            )}
             <AnimatePresence mode="wait">
               {currentStep < 3 ? (
                 <motion.div
@@ -402,7 +424,11 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
               ? "Escolha a hipótese que faz mais sentido para o seu contexto atual. Você poderá editá-la no próximo passo." 
               : isRefineStep
               ? "Este é o momento de aplicar o julgamento humano. Ajuste a hipótese e documente observações críticas."
-              : "Estes são os três pilares do Modelo de Melhoria. Uma resposta clara aqui garante que seu ciclo PDSA seja focado e eficaz."}
+              : currentStep === 0
+              ? "O Objetivo (Aim) é a meta mensurável do ciclo. Seja específico: o que, em quanto, até quando. É a âncora de todo o PDSA."
+              : currentStep === 1
+              ? "A Medição (Measure) define como você saberá se houve melhoria. Escolha um indicador claro, confiável e fácil de coletar."
+              : "A Mudança (Change) é a intervenção que você vai testar. Pense em algo pequeno, mensurável e executável no próximo ciclo."}
           </p>
         </div>
       </div>
