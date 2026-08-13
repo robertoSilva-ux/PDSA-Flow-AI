@@ -68,6 +68,8 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
   const [selectedHypothesisIndex, setSelectedHypothesisIndex] = useState<number | null>(null)
   const [refinedStatement, setRefinedStatement] = useState('')
   const [observations, setObservations] = useState('')
+  // Estado para confirmação de contexto antes de chamar a IA (human-in-the-loop)
+  const [confirmingContext, setConfirmingContext] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const fields = ['aim', 'measure', 'change']
@@ -103,6 +105,7 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
       setSelectedHypothesisIndex(null)
       setRefinedStatement('')
       setObservations('')
+      setConfirmingContext(false)
     } catch (err) {
       setError('Erro ao conectar com o agente de IA. Verifique se o backend e o Ollama estão rodando.')
       console.error(err)
@@ -147,6 +150,11 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
   }
 
   const nextStep = () => {
+    // Passo 3 (Change): primeiro o humano confirma o contexto, depois dispara a IA
+    if (currentStep === 2 && !confirmingContext) {
+      setConfirmingContext(true)
+      return
+    }
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1)
     } else if (currentStep === 2) {
@@ -161,6 +169,8 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
   const prevStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
+      // Sai do modo confirmação ao voltar do passo Change
+      if (currentStep === 2) setConfirmingContext(false)
     }
   }
 
@@ -280,6 +290,45 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
             )}
             <AnimatePresence mode="wait">
               {currentStep < 3 ? (
+                currentStep === 2 && confirmingContext ? (
+                  <motion.div
+                    key="confirm-context"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-foreground flex items-center gap-1">
+                        <Sparkles className="w-4 h-4 text-primary" /> Confirme o contexto que a IA vai analisar
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmingContext(false)}
+                        className="gap-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <PencilLine className="w-3.5 h-3.5" /> Editar
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="rounded-lg border p-3 bg-background">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1">Objetivo (Aim)</p>
+                        <p className="text-sm text-foreground">{formData.aim}</p>
+                      </div>
+                      <div className="rounded-lg border p-3 bg-background">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1">Medição (Measure)</p>
+                        <p className="text-sm text-foreground">{formData.measure}</p>
+                      </div>
+                      <div className="rounded-lg border p-3 bg-background border-primary/30">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1">Mudança (Change)</p>
+                        <p className="text-sm text-foreground">{formData.change}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Revisou tudo? O botão abaixo envia este contexto ao modelo local (Ollama) para gerar hipóteses de melhoria.
+                    </p>
+                  </motion.div>
+                ) : (
                 <motion.div
                   key={currentStep}
                   initial={{ opacity: 0, x: 20 }}
@@ -295,6 +344,7 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
                     autoFocus
                   />
                 </motion.div>
+                )
               ) : isReviewStep ? (
                 <motion.div
                   key="review"
@@ -408,7 +458,11 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
               ) : isReviewStep ? (
                 <>Refinar Escolha <ArrowRight className="w-4 h-4" /></>
               ) : currentStep === 2 ? (
-                <>Gerar Opções <Sparkles className="w-4 h-4" /></>
+                confirmingContext ? (
+                  <>Gerar Opções <Sparkles className="w-4 h-4" /></>
+                ) : (
+                  <>Revisar Contexto <ArrowRight className="w-4 h-4" /></>
+                )
               ) : (
                 <>Próximo <ArrowRight className="w-4 h-4" /></>
               )}
@@ -428,6 +482,8 @@ export const PDSAWizard: React.FC<PDSAWizardProps> = ({ projectId, onComplete })
               ? "O Objetivo (Aim) é a meta mensurável do ciclo. Seja específico: o que, em quanto, até quando. É a âncora de todo o PDSA."
               : currentStep === 1
               ? "A Medição (Measure) define como você saberá se houve melhoria. Escolha um indicador claro, confiável e fácil de coletar."
+              : currentStep === 2 && confirmingContext
+              ? "Você é o dono do contexto. Confira os três pilares acima e edite se algo estiver fora da realidade antes de a IA gerar as hipóteses."
               : "A Mudança (Change) é a intervenção que você vai testar. Pense em algo pequeno, mensurável e executável no próximo ciclo."}
           </p>
         </div>
